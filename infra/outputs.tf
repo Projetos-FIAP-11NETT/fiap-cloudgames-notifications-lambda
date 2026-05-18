@@ -33,6 +33,11 @@ output "ses_verified_email" {
   value       = aws_ses_email_identity.notification_email.email
 }
 
+output "ses_email_identity_arn" {
+  description = "ARN of the SES verified email identity"
+  value       = aws_ses_email_identity.notification_email.arn
+}
+
 output "lambda_invocation_command" {
   description = "AWS CLI command to test the Lambda function"
   value       = "aws lambda invoke --function-name ${aws_lambda_function.email_function.function_name} --endpoint-url=${var.localstack_endpoint} --region=${var.aws_region} /tmp/response.json"

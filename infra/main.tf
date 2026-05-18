@@ -35,7 +35,10 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Effect = "Allow"
         Action = [
           "ses:SendEmail",
-          "ses:SendRawEmail"
+          "ses:SendRawEmail",
+          "ses:GetAccountSendingEnabled",
+          "ses:ListVerifiedEmailAddresses",
+          "ses:ListIdentities"
         ]
         Resource = "*"
       },
@@ -111,7 +114,7 @@ resource "aws_lambda_event_source_mapping" "sqs_trigger" {
 }
 
 # =====================================================
-# SES Email Verification (optional)
+# SES Email Verification
 # =====================================================
 
 resource "aws_ses_email_identity" "notification_email" {

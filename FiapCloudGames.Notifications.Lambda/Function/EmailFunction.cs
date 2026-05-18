@@ -2,6 +2,11 @@ using Amazon.Lambda.Core;
 using Amazon.Lambda.SQSEvents;
 using FiapCloudGames.Notifications.Lambda.Models;
 using FiapCloudGames.Notifications.Lambda.Services;
+using OpenTelemetry;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using System.Diagnostics;
 using System.Text.Json;
 
 
@@ -13,6 +18,9 @@ namespace FiapCloudGames.Notifications.Lambda;
 public class EmailFunction
 {
     private readonly IEmailService _emailService;
+    private static readonly TracerProvider _tracerProvider;
+    private static readonly ActivitySource Activity = new("notification-lambda");
+    private readonly NewRelicLogService _newRelicLogService;
 
     /// <summary>
     /// Default constructor. This constructor is used by Lambda to construct the instance. When invoked in a Lambda environment
@@ -22,6 +30,30 @@ public class EmailFunction
     public EmailFunction()
     {
         _emailService = new SesEmailService();
+        _newRelicLogService = new NewRelicLogService();
+    }
+
+    static EmailFunction()
+    {
+        _tracerProvider = Sdk.CreateTracerProviderBuilder()
+        .SetResourceBuilder(
+            ResourceBuilder.CreateDefault()
+                .AddService("notification-lambda")
+        )
+        .AddHttpClientInstrumentation()
+        .AddSource("notification-lambda")
+        .AddOtlpExporter(options =>
+        {
+            options.Endpoint =
+                new Uri("https://otlp.nr-data.net:4318/v1/traces");
+
+            options.Protocol =
+                OtlpExportProtocol.HttpProtobuf;
+
+            options.Headers =
+                $"api-key={Environment.GetEnvironmentVariable("NEW_RELIC_LICENSE_KEY")}";
+        })
+        .Build();
     }
 
 
@@ -34,10 +66,12 @@ public class EmailFunction
     /// <returns></returns>
     public async Task FunctionHandler(SQSEvent evnt, ILambdaContext context)
     {
-        foreach(var message in evnt.Records)
+        foreach (var message in evnt.Records)
         {
             await ProcessMessageAsync(message, context);
         }
+
+        _tracerProvider.ForceFlush();
     }
 
     private async Task ProcessMessageAsync(SQSEvent.SQSMessage message, ILambdaContext context)
@@ -45,16 +79,36 @@ public class EmailFunction
         context.Logger.LogInformation($"Processed message {message.Body}");
 
         var emailMessage = JsonSerializer.Deserialize<EmailMessage>(message.Body);
+        using var activity = Activity.StartActivity("SendEmail");
 
-        //try
-        //{
+        activity?.SetTag("CorrelationId", emailMessage?.CorrelationId);
+
+        try
+        {
+            await _newRelicLogService.SendLogAsync("INFO", "[notification-lambda] | Email enviado", new
+                {
+                    emailMessage?.CorrelationId,
+                    emailMessage?.To,
+                    emailMessage?.Subject,
+                    emailMessage?.Body
+                }
+            );
+
             await _emailService.SendAsync(emailMessage!);
-        //}
-        //catch (Exception ex)
-        //{
-            //context.Logger.LogError($"Erro inesperado ao enviar mensagem {message.MessageId}: {ex}");
-        //}
+        }
+        catch (Exception ex)
+        {
+            context.Logger.LogError($"Erro inesperado ao enviar mensagem {message.MessageId}: {ex}");
 
-        //await Task.CompletedTask;
+            await _newRelicLogService.SendLogAsync("ERROR", "[notification-lambda] | Erro ao enviar email", new
+                {
+                    Exception = ex.Message,
+                    StackTrace = ex.StackTrace ?? string.Empty,
+                    emailMessage?.CorrelationId
+                }
+            );
+        }
+
+        await Task.CompletedTask;
     }
 }
