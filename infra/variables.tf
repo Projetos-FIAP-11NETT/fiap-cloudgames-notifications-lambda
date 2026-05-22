@@ -21,7 +21,7 @@ variable "aws_secret_key" {
 variable "localstack_endpoint" {
   description = "LocalStack endpoint URL"
   type        = string
-  default     = "http://localhost:4566"
+  default     = "http://localhost:30466"
 }
 
 # Lambda Configuration
@@ -88,7 +88,7 @@ variable "lambda_environment_variables" {
   default = {
     AWS_ACCESS_KEY_ID       = "test"
     AWS_SECRET_ACCESS_KEY   = "test"
-    AWS_SES_ENDPOINT        = "http://localstack:4566"
+    AWS_SES_ENDPOINT        = "http://host.docker.internal:4566"
     AWS_REGION              = "us-east-1"
   }
 }

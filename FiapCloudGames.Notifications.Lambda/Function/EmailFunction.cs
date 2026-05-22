@@ -20,7 +20,7 @@ public class EmailFunction
     private readonly IEmailService _emailService;
     private static readonly TracerProvider _tracerProvider;
     private static readonly ActivitySource Activity = new("notification-lambda");
-    private readonly NewRelicLogService _newRelicLogService;
+    //private readonly NewRelicLogService _newRelicLogService;
 
     /// <summary>
     /// Default constructor. This constructor is used by Lambda to construct the instance. When invoked in a Lambda environment
@@ -30,7 +30,7 @@ public class EmailFunction
     public EmailFunction()
     {
         _emailService = new SesEmailService();
-        _newRelicLogService = new NewRelicLogService();
+        //_newRelicLogService = new NewRelicLogService();
     }
 
     static EmailFunction()
@@ -85,14 +85,14 @@ public class EmailFunction
 
         try
         {
-            await _newRelicLogService.SendLogAsync("INFO", "[notification-lambda] | Email enviado", new
-                {
-                    emailMessage?.CorrelationId,
-                    emailMessage?.To,
-                    emailMessage?.Subject,
-                    emailMessage?.Body
-                }
-            );
+            //await _newRelicLogService.SendLogAsync("INFO", "[notification-lambda] | Email enviado", new
+            //    {
+            //        emailMessage?.CorrelationId,
+            //        emailMessage?.To,
+            //        emailMessage?.Subject,
+            //        emailMessage?.Body
+            //    }
+            //);
 
             await _emailService.SendAsync(emailMessage!);
         }
@@ -100,13 +100,13 @@ public class EmailFunction
         {
             context.Logger.LogError($"Erro inesperado ao enviar mensagem {message.MessageId}: {ex}");
 
-            await _newRelicLogService.SendLogAsync("ERROR", "[notification-lambda] | Erro ao enviar email", new
-                {
-                    Exception = ex.Message,
-                    StackTrace = ex.StackTrace ?? string.Empty,
-                    emailMessage?.CorrelationId
-                }
-            );
+            //await _newRelicLogService.SendLogAsync("ERROR", "[notification-lambda] | Erro ao enviar email", new
+            //    {
+            //        Exception = ex.Message,
+            //        StackTrace = ex.StackTrace ?? string.Empty,
+            //        emailMessage?.CorrelationId
+            //    }
+            //);
         }
 
         await Task.CompletedTask;
