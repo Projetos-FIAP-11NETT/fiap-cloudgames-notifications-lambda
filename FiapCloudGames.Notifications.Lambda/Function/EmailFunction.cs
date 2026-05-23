@@ -20,7 +20,7 @@ public class EmailFunction
     private readonly IEmailService _emailService;
     private static readonly TracerProvider _tracerProvider;
     private static readonly ActivitySource Activity = new("notification-lambda");
-    //private readonly NewRelicLogService _newRelicLogService;
+    private readonly NewRelicLogService _newRelicLogService;
 
     /// <summary>
     /// Default constructor. This constructor is used by Lambda to construct the instance. When invoked in a Lambda environment
@@ -30,7 +30,7 @@ public class EmailFunction
     public EmailFunction()
     {
         _emailService = new SesEmailService();
-        //_newRelicLogService = new NewRelicLogService();
+        _newRelicLogService = new NewRelicLogService();
     }
 
     static EmailFunction()
@@ -40,18 +40,19 @@ public class EmailFunction
             ResourceBuilder.CreateDefault()
                 .AddService("notification-lambda")
         )
-        .AddHttpClientInstrumentation()
+        //.AddHttpClientInstrumentation()
         .AddSource("notification-lambda")
+        .AddConsoleExporter()
         .AddOtlpExporter(options =>
         {
             options.Endpoint =
-                new Uri("https://otlp.nr-data.net:4318/v1/traces");
+                new Uri("https://otlp.nr-data.net");
 
             options.Protocol =
                 OtlpExportProtocol.HttpProtobuf;
 
             options.Headers =
-                $"api-key={Environment.GetEnvironmentVariable("NEW_RELIC_LICENSE_KEY")}";
+                $"api-key={Environment.GetEnvironmentVariable("NEW_RELIC_LICENSE_KEY")?.Trim()}";
         })
         .Build();
     }
@@ -85,14 +86,14 @@ public class EmailFunction
 
         try
         {
-            //await _newRelicLogService.SendLogAsync("INFO", "[notification-lambda] | Email enviado", new
-            //    {
-            //        emailMessage?.CorrelationId,
-            //        emailMessage?.To,
-            //        emailMessage?.Subject,
-            //        emailMessage?.Body
-            //    }
-            //);
+            await _newRelicLogService.SendLogAsync("INFO", "[notification-lambda] | Email enviado", new
+            {
+                emailMessage?.CorrelationId,
+                emailMessage?.To,
+                emailMessage?.Subject,
+                emailMessage?.Body
+            }
+            );
 
             await _emailService.SendAsync(emailMessage!);
         }

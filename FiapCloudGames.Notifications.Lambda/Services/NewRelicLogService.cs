@@ -13,7 +13,7 @@ public class NewRelicLogService
 
         _httpClient.DefaultRequestHeaders.Add(
             "X-License-Key",
-            Environment.GetEnvironmentVariable("NEW_RELIC_LICENSE_KEY")
+            Environment.GetEnvironmentVariable("NEW_RELIC_LICENSE_KEY")?.Trim()
         );
     }
 
