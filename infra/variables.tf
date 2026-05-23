@@ -88,7 +88,7 @@ variable "lambda_environment_variables" {
   default = {
     AWS_ACCESS_KEY_ID       = "test"
     AWS_SECRET_ACCESS_KEY   = "test"
-    AWS_SES_ENDPOINT        = "http://host.docker.internal:4566"
+    AWS_SES_ENDPOINT        = "http://localstack:30466"
     AWS_REGION              = "us-east-1"
   }
 }
