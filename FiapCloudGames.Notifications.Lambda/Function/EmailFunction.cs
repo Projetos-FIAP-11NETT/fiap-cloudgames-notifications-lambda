@@ -101,13 +101,13 @@ public class EmailFunction
         {
             context.Logger.LogError($"Erro inesperado ao enviar mensagem {message.MessageId}: {ex}");
 
-            //await _newRelicLogService.SendLogAsync("ERROR", "[notification-lambda] | Erro ao enviar email", new
-            //    {
-            //        Exception = ex.Message,
-            //        StackTrace = ex.StackTrace ?? string.Empty,
-            //        emailMessage?.CorrelationId
-            //    }
-            //);
+            await _newRelicLogService.SendLogAsync("ERROR", "[notification-lambda] | Erro ao enviar email", new
+            {
+                Exception = ex.Message,
+                StackTrace = ex.StackTrace ?? string.Empty,
+                emailMessage?.CorrelationId
+            }
+            );
         }
 
         await Task.CompletedTask;
