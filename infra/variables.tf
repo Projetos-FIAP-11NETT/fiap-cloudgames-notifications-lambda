@@ -72,7 +72,7 @@ variable "iam_role_name" {
 variable "sqs_queue_name" {
   description = "Name of the SQS queue"
   type        = string
-  default     = "minha-fila"
+  default     = "notification-queue"
 }
 
 variable "sqs_batch_size" {
