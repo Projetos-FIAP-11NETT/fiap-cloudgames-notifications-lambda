@@ -72,7 +72,7 @@ variable "iam_role_name" {
 variable "sqs_queue_name" {
   description = "Name of the SQS queue"
   type        = string
-  default     = "minha-fila"
+  default     = "notification-queue"
 }
 
 variable "sqs_batch_size" {
@@ -88,7 +88,7 @@ variable "lambda_environment_variables" {
   default = {
     AWS_ACCESS_KEY_ID       = "test"
     AWS_SECRET_ACCESS_KEY   = "test"
-    AWS_SES_ENDPOINT        = "http://localstack:30466"
+    AWS_SES_ENDPOINT        = "http://host.docker.internal:4566"
     AWS_REGION              = "us-east-1"
   }
 }

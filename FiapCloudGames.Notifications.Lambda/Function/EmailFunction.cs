@@ -77,6 +77,8 @@ public class EmailFunction
 
     private async Task ProcessMessageAsync(SQSEvent.SQSMessage message, ILambdaContext context)
     {
+
+        var timestampInit = DateTimeOffset.UtcNow.ToString("o");
         context.Logger.LogInformation($"Processed message {message.Body}");
 
         var emailMessage = JsonSerializer.Deserialize<EmailMessage>(message.Body);
@@ -86,16 +88,9 @@ public class EmailFunction
 
         try
         {
-            await _newRelicLogService.SendLogAsync("INFO", "[notification-lambda] | Email enviado", new
-            {
-                emailMessage?.CorrelationId,
-                emailMessage?.To,
-                emailMessage?.Subject,
-                emailMessage?.Body
-            }
-            );
-
+            
             await _emailService.SendAsync(emailMessage!);
+
         }
         catch (Exception ex)
         {
@@ -109,6 +104,35 @@ public class EmailFunction
             }
             );
         }
+
+        var timestampEnd = DateTimeOffset.UtcNow.ToString("o");
+        var durationMs =
+            (DateTimeOffset.Parse(timestampEnd) - DateTimeOffset.Parse(timestampInit))
+            .TotalMilliseconds;
+        try
+        {
+            await _newRelicLogService.SendLogAsync("INFO", "[notification-lambda] | Email enviado", new
+            {
+                emailMessage?.CorrelationId,
+                emailMessage?.To,
+                emailMessage?.Subject,
+                emailMessage?.Body,
+                durationMs
+            });
+        }
+        catch (Exception ex)
+        {
+
+            context.Logger.LogError($"Erro inesperado ao enviar logs para New Relic: {ex}");
+
+            await _newRelicLogService.SendLogAsync("ERROR", "[_newRelicLogService.SendLogAsync] | Erro ao enviar logs para New Relic", new
+            {
+                Exception = ex.Message,
+                StackTrace = ex.StackTrace ?? string.Empty,
+                emailMessage?.CorrelationId
+            }
+            );
+        }       
 
         await Task.CompletedTask;
     }
