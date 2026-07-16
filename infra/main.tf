@@ -1,70 +1,4 @@
 # =====================================================
-# IAM Role for Lambda
-# =====================================================
-
-resource "aws_iam_role" "lambda_role" {
-  name = var.iam_role_name
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
-      }
-    ]
-  })
-
-  tags = var.tags
-}
-
-# =====================================================
-# IAM Policy for Lambda (SES and SQS permissions)
-# =====================================================
-
-resource "aws_iam_role_policy" "lambda_policy" {
-  name   = "${var.iam_role_name}-policy"
-  role   = aws_iam_role.lambda_role.id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ses:SendEmail",
-          "ses:SendRawEmail",
-          "ses:GetAccountSendingEnabled",
-          "ses:ListVerifiedEmailAddresses",
-          "ses:ListIdentities"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "sqs:ReceiveMessage",
-          "sqs:DeleteMessage",
-          "sqs:GetQueueAttributes"
-        ]
-        Resource = aws_sqs_queue.notification_queue.arn
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-        Resource = "arn:aws:logs:${var.aws_region}:000000000000:*"
-      }
-    ]
-  })
-}
-
-# =====================================================
 # SQS Queue
 # =====================================================
 
@@ -81,7 +15,7 @@ resource "aws_sqs_queue" "notification_queue" {
 resource "aws_lambda_function" "email_function" {
   filename         = var.lambda_zip_file
   function_name    = var.lambda_function_name
-  role             = aws_iam_role.lambda_role.arn
+  role_arn         = var.lambda_role.arn
   handler          = var.lambda_handler
   runtime          = var.lambda_runtime
   timeout          = var.lambda_timeout
@@ -93,10 +27,6 @@ resource "aws_lambda_function" "email_function" {
   }
 
   tags = var.tags
-
-  depends_on = [
-    aws_iam_role_policy.lambda_policy
-  ]
 }
 
 # =====================================================

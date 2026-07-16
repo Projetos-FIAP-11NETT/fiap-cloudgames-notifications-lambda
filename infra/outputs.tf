@@ -40,10 +40,10 @@ output "ses_email_identity_arn" {
 
 output "lambda_invocation_command" {
   description = "AWS CLI command to test the Lambda function"
-  value       = "aws lambda invoke --function-name ${aws_lambda_function.email_function.function_name} --endpoint-url=${var.localstack_endpoint} --region=${var.aws_region} /tmp/response.json"
+  value       = "aws lambda invoke --function-name ${aws_lambda_function.email_function.function_name} --region=${var.aws_region} /tmp/response.json"
 }
 
 output "sqs_send_message_command" {
   description = "AWS CLI command to send a test message to SQS"
-  value       = "aws sqs send-message --queue-url ${aws_sqs_queue.notification_queue.url} --message-body '{\"to\":\"test@example.com\",\"subject\":\"Test\",\"body\":\"Test message\"}' --endpoint-url=${var.localstack_endpoint} --region=${var.aws_region}"
+  value       = "aws sqs send-message --queue-url ${aws_sqs_queue.notification_queue.url} --message-body '{\"to\":\"test@example.com\",\"subject\":\"Test\",\"body\":\"Test message\"}' --region=${var.aws_region}"
 }
