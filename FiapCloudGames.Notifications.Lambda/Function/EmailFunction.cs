@@ -1,5 +1,6 @@
 using Amazon.Lambda.Core;
 using Amazon.Lambda.SQSEvents;
+using FiapCloudGames.Notifications.Application.Services.Email;
 using FiapCloudGames.Notifications.Lambda.Models;
 using FiapCloudGames.Notifications.Lambda.Services;
 using OpenTelemetry;
@@ -17,7 +18,8 @@ namespace FiapCloudGames.Notifications.Lambda;
 
 public class EmailFunction
 {
-    private readonly IEmailService _emailService;
+    //private readonly IEmailService _emailService;
+    private readonly IEmailSender _emailSender;
     private static readonly TracerProvider _tracerProvider;
     private static readonly ActivitySource Activity = new("notification-lambda");
     private readonly NewRelicLogService _newRelicLogService;
@@ -29,7 +31,8 @@ public class EmailFunction
     /// </summary>
     public EmailFunction()
     {
-        _emailService = new SesEmailService();
+        //_emailService = new SesEmailService();
+        _emailSender = new EmailSender();
         _newRelicLogService = new NewRelicLogService();
     }
 
@@ -89,7 +92,7 @@ public class EmailFunction
         try
         {
             
-            await _emailService.SendAsync(emailMessage!);
+            await _emailSender.SendEmailAsync(emailMessage!.To, emailMessage!.Subject, emailMessage!.Body);
 
         }
         catch (Exception ex)
