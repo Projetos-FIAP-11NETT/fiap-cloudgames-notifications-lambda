@@ -48,12 +48,6 @@ variable "lambda_zip_file" {
   default     = "../FiapCloudGames.Notifications.Lambda/publish/function.zip"
 }
 
-# IAM Configuration
-variable "lambda_role" {
-  description = "Name of the IAM role for Lambda"
-  type        = string
-}
-
 # SQS Configuration
 variable "sqs_queue_name" {
   description = "Name of the SQS queue"
@@ -71,9 +65,9 @@ variable "sqs_batch_size" {
 variable "lambda_environment_variables" {
   description = "Environment variables for Lambda function"
   type        = map(string)
-  default = {
-    AWS_REGION = "us-east-1"
-  }
+  # AWS_REGION e reservada pelo Lambda (setada automaticamente em runtime),
+  # nao pode ser definida via configuration da funcao.
+  default = {}
 }
 
 # SES Configuration
