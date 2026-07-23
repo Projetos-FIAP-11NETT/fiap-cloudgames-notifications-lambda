@@ -10,7 +10,7 @@ output "lambda_function_name" {
 
 output "iam_role_arn" {
   description = "ARN of the IAM role"
-  value       = aws_iam_role.lambda_role.arn
+  value       = data.aws_iam_role.lab_role.arn
 }
 
 output "sqs_queue_url" {
@@ -26,16 +26,6 @@ output "sqs_queue_arn" {
 output "event_source_mapping_uuid" {
   description = "UUID of the Lambda event source mapping"
   value       = aws_lambda_event_source_mapping.sqs_trigger.uuid
-}
-
-output "ses_verified_email" {
-  description = "Verified email identity in SES"
-  value       = aws_ses_email_identity.notification_email.email
-}
-
-output "ses_email_identity_arn" {
-  description = "ARN of the SES verified email identity"
-  value       = aws_ses_email_identity.notification_email.arn
 }
 
 output "lambda_invocation_command" {
