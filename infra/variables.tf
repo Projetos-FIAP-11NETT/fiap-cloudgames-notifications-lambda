@@ -4,24 +4,11 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "aws_access_key" {
-  description = "AWS access key (for LocalStack)"
-  type        = string
-  sensitive   = true
-  default     = "test"
-}
-
-variable "aws_secret_key" {
-  description = "AWS secret key (for LocalStack)"
-  type        = string
-  sensitive   = true
-  default     = "test"
-}
 
 variable "localstack_endpoint" {
-  description = "LocalStack endpoint URL"
+  description = "Deprecated; kept for compatibility but not used for real AWS deployments"
   type        = string
-  default     = "http://localhost:30466"
+  default     = ""
 }
 
 # Lambda Configuration
@@ -61,13 +48,6 @@ variable "lambda_zip_file" {
   default     = "../FiapCloudGames.Notifications.Lambda/publish/function.zip"
 }
 
-# IAM Configuration
-variable "iam_role_name" {
-  description = "Name of the IAM role for Lambda"
-  type        = string
-  default     = "lambda-role"
-}
-
 # SQS Configuration
 variable "sqs_queue_name" {
   description = "Name of the SQS queue"
@@ -85,12 +65,9 @@ variable "sqs_batch_size" {
 variable "lambda_environment_variables" {
   description = "Environment variables for Lambda function"
   type        = map(string)
-  default = {
-    AWS_ACCESS_KEY_ID       = "test"
-    AWS_SECRET_ACCESS_KEY   = "test"
-    AWS_SES_ENDPOINT        = "http://host.docker.internal:4566"
-    AWS_REGION              = "us-east-1"
-  }
+  # AWS_REGION e reservada pelo Lambda (setada automaticamente em runtime),
+  # nao pode ser definida via configuration da funcao.
+  default = {}
 }
 
 # SES Configuration
@@ -104,8 +81,8 @@ variable "tags" {
   description = "Tags to apply to all resources"
   type        = map(string)
   default = {
-    Project = "FiapCloudGames"
-    Service = "Notifications"
+    Project     = "FiapCloudGames"
+    Service     = "Notifications"
     Environment = "local"
   }
 }

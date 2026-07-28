@@ -1,67 +1,13 @@
 # =====================================================
-# IAM Role for Lambda
+# IAM Role
 # =====================================================
 
-resource "aws_iam_role" "lambda_role" {
-  name = var.iam_role_name
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
-      }
-    ]
-  })
-
-  tags = var.tags
-}
-
-# =====================================================
-# IAM Policy for Lambda (SES and SQS permissions)
-# =====================================================
-
-resource "aws_iam_role_policy" "lambda_policy" {
-  name   = "${var.iam_role_name}-policy"
-  role   = aws_iam_role.lambda_role.id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ses:SendEmail",
-          "ses:SendRawEmail",
-          "ses:GetAccountSendingEnabled",
-          "ses:ListVerifiedEmailAddresses",
-          "ses:ListIdentities"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "sqs:ReceiveMessage",
-          "sqs:DeleteMessage",
-          "sqs:GetQueueAttributes"
-        ]
-        Resource = aws_sqs_queue.notification_queue.arn
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-        Resource = "arn:aws:logs:${var.aws_region}:000000000000:*"
-      }
-    ]
-  })
+# O AWS Academy Lab bloqueia iam:CreateRole, entao reaproveitamos a
+# LabRole pre-existente na conta em vez de criar uma role nova
+# (mesmo padrao usado em infra/terraform/aws-apigateway-lambda-auth
+# do repo fiap-cloudgames-infrastructure).
+data "aws_iam_role" "lab_role" {
+  name = "LabRole"
 }
 
 # =====================================================
@@ -81,7 +27,7 @@ resource "aws_sqs_queue" "notification_queue" {
 resource "aws_lambda_function" "email_function" {
   filename         = var.lambda_zip_file
   function_name    = var.lambda_function_name
-  role             = aws_iam_role.lambda_role.arn
+  role             = data.aws_iam_role.lab_role.arn
   handler          = var.lambda_handler
   runtime          = var.lambda_runtime
   timeout          = var.lambda_timeout
@@ -93,10 +39,6 @@ resource "aws_lambda_function" "email_function" {
   }
 
   tags = var.tags
-
-  depends_on = [
-    aws_iam_role_policy.lambda_policy
-  ]
 }
 
 # =====================================================
@@ -116,7 +58,14 @@ resource "aws_lambda_event_source_mapping" "sqs_trigger" {
 # =====================================================
 # SES Email Verification
 # =====================================================
-
-resource "aws_ses_email_identity" "notification_email" {
-  email = var.ses_verified_email
-}
+#
+# Todas as acoes ses:* (VerifyEmailIdentity, ListIdentities, GetSendQuota,
+# GetAccount) retornam AccessDenied nesta conta AWS Academy - bloqueio de
+# plataforma, sem contorno possivel via IAM/Terraform. O envio real de
+# e-mail nao e testavel neste ambiente; a Lambda ainda tenta chamar o SES
+# e falha com AccessDenied, o que confirma que o pipeline SQS -> Lambda
+# em si esta funcionando corretamente.
+#
+# resource "aws_ses_email_identity" "notification_email" {
+#   email = var.ses_verified_email
+# }
