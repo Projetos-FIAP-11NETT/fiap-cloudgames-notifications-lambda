@@ -1,6 +1,8 @@
 # FIAP CloudGames — Notifications Lambda
 
-Serviço serverless responsável pelo envio de e-mails transacionais da plataforma CloudGames. A função é acionada por mensagens em uma fila SQS e envia os e-mails via AWS SES, com rastreamento distribuído e logs estruturados integrados ao New Relic.
+Serviço serverless responsável pelo envio de e-mails transacionais da plataforma CloudGames. A função é acionada por mensagens em uma fila SQS e envia os e-mails via **SMTP (MailHog)**, com rastreamento distribuído e logs estruturados integrados ao New Relic.
+
+> **Nota — AWS Academy:** o envio original era via **AWS SES**, mas a conta do lab AWS Academy bloqueia todas as ações `ses:*` (`AccessDenied` de plataforma, sem contorno possível via IAM/Terraform — ver `infra/main.tf`). Por isso o envio de e-mail foi migrado para **MailHog** rodando como serviço no cluster EKS (`mailhog.apps.svc.cluster.local:1025`, manifests em `fiap-cloudgames-infrastructure/k8s/shared/mailhog`). O código do SES (`SesEmailService` / `SesClientFactory`) permanece no repositório, mas está desativado — o `EmailFunction` hoje usa apenas o `EmailSender` (SMTP).
 
 ---
 
@@ -27,7 +29,7 @@ Quando um evento de notificação é publicado na fila SQS, esta Lambda é invoc
 **Fluxo resumido:**
 
 ```
-Produtor → SQS Queue → Lambda (EmailFunction) → AWS SES → E-mail entregue
+Produtor → SQS Queue → Lambda (EmailFunction) → MailHog (SMTP, no EKS) → E-mail entregue
                                      ↓
                               New Relic (logs + traces)
 ```
@@ -46,13 +48,13 @@ Produtor → SQS Queue → Lambda (EmailFunction) → AWS SES → E-mail entregu
 │  │   queue      │     │  1. Deserializa EmailMessage  │ │
 │  └──────────────┘     │  2. Cria span OpenTelemetry   │ │
 │                        │  3. Envia log ao New Relic    │ │
-│                        │  4. Chama SesEmailService     │ │
+│                        │  4. Chama EmailSender (SMTP)  │ │
 │                        └──────────────┬────────────────┘ │
 │                                       │                  │
 │                               ┌───────▼────────┐         │
-│                               │   AWS SES      │         │
-│                               │ (envio de      │         │
-│                               │  e-mail)       │         │
+│                               │  MailHog (EKS) │         │
+│                               │ (SMTP :1025 /  │         │
+│                               │  UI :8025)     │         │
 │                               └────────────────┘         │
 └─────────────────────────────────────────────────────────┘
                          │
@@ -67,10 +69,10 @@ Produtor → SQS Queue → Lambda (EmailFunction) → AWS SES → E-mail entregu
 
 | Recurso | Nome padrão | Descrição |
 |---------|-------------|-----------|
-| IAM Role | `lambda-role` | Role de execução da Lambda |
+| IAM Role | `LabRole` (reaproveitada) | O AWS Academy bloqueia `iam:CreateRole`; reutiliza a role pré-existente do lab (mesmo padrão do Lambda Authorizer em `fiap-cloudgames-infrastructure`) |
 | SQS Queue | `notification-queue` | Fila de entrada de notificações |
 | Lambda Function | `email-function` | Processador de e-mails |
-| SES Email Identity | `no-reply@fiapcloudgames.local` | Remetente verificado |
+| SES Email Identity | *(comentado em `main.tf`)* | Ações `ses:*` bloqueadas na conta AWS Academy — recurso mantido comentado como documentação |
 | Event Source Mapping | — | Gatilho SQS → Lambda (batch size: 1) |
 
 ---
@@ -80,9 +82,10 @@ Produtor → SQS Queue → Lambda (EmailFunction) → AWS SES → E-mail entregu
 | Tecnologia | Versão | Uso |
 |---|---|---|
 | .NET | 8.0 | Runtime da Lambda |
-| AWS Lambda | — | Plataforma serverless |
+| AWS Lambda | — | Plataforma serverless (deploy real via **AWS Academy**, IAM `LabRole`) |
 | Amazon SQS | — | Fila de mensagens (trigger) |
-| Amazon SES | — | Envio de e-mails |
+| MailHog (SMTP) | — | Envio de e-mails — substitui o AWS SES, bloqueado no AWS Academy |
+| ~~Amazon SES~~ | — | Código mantido no projeto, porém desativado (ver nota acima) |
 | Terraform | >= 1.0 | Infraestrutura como código |
 | LocalStack | — | Simulação local da AWS |
 | OpenTelemetry | 1.15.x | Rastreamento distribuído |
@@ -291,11 +294,11 @@ dotnet lambda deploy-function email-function `
   --region sa-east-1
 ```
 
-### Verificar e-mail remetente no SES (produção)
+### Envio de e-mail em produção (AWS Academy)
 
-Em produção, o SES exige que o endereço remetente seja verificado. Acesse o console da AWS → SES → Verified Identities e confirme o e-mail `no-reply@fiapcloudgames.local` (ou o endereço que você configurar).
+Como a conta do lab AWS Academy bloqueia `ses:*`, a Lambda envia e-mails via **SMTP para o MailHog** implantado no cluster EKS (`fiap-cloudgames-infrastructure/k8s/shared/mailhog`), tanto localmente quanto no deploy real na AWS. Não há verificação de remetente necessária — o MailHog aceita qualquer remetente/destinatário e expõe uma UI web (porta `8025`) para inspecionar os e-mails "enviados".
 
-Se estiver usando um domínio real, adicione os registros DNS retornados pelo SES no seu provedor de domínio.
+> Fora do contexto AWS Academy (conta AWS própria, sem o bloqueio de SES), o caminho original via `SesEmailService`/`SesClientFactory` pode ser reativado no lugar do `EmailSender` em `EmailFunction.cs`, e o recurso `aws_ses_email_identity` descomentado em `infra/main.tf`.
 
 ---
 
@@ -419,9 +422,9 @@ aws lambda list-event-source-mappings `
 
 O campo `State` deve ser `Enabled`.
 
-### E-mail não é enviado (SES)
+### E-mail não é enviado (MailHog)
 
-Em LocalStack, o SES apenas simula o envio — não há e-mail real entregue. Verifique nos logs se o `SesEmailService` recebeu o retorno sem erro. Em produção, confirme que o endereço remetente (`no-reply@fiapcloudgames.local`) está verificado no SES.
+Confirme que o serviço `mailhog` está `Running` no cluster EKS/K8s e que a Lambda tem rota de rede até `mailhog.apps.svc.cluster.local:1025` (mesma VPC/cluster). Verifique nos logs se o `EmailSender` lançou exceção ao conectar via SMTP. Para inspecionar os e-mails recebidos, acesse a UI do MailHog na porta `8025` (ver NodePort/Service em `fiap-cloudgames-infrastructure`).
 
 ### Logs não aparecem no New Relic
 
